@@ -603,7 +603,7 @@ async def test_register_display_device_prefers_via_device_id(
 
     class Reg:
         async_get_or_create = staticmethod(fake)
-        async_get_device = registry.async_get_device
+        devices = registry.devices
 
     monkeypatch.setattr(entity_mod.dr, "async_get", lambda hass: Reg)
     entity_mod.register_display_device(hass, mock_entry, DISPLAYS[0])

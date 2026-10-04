@@ -49,6 +49,8 @@ Sleeping e-ink panels show as `off`; commands to a display that is not live fail
 
 Options: poll interval (default 10 s, minimum 5 s).
 
+Tile-card playback controls on Home Assistant 2026.9 use the feature type `media-player-playback`.
+
 ## Services
 
 - `pieria.show_artwork` - target a Pieria media player; give `artwork_id` **or** `query` (best search hit).

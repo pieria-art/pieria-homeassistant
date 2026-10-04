@@ -50,7 +50,16 @@ def register_display_device(
     """
     registry = dr.async_get(hass)
     server_id = entry.runtime_data.info["server_id"]
-    server = registry.async_get_device(identifiers={(DOMAIN, server_id)})
+    # async_get_device is deprecated (removed 2027.8) and its replacement does not exist on older
+    # releases; listing the entry's own devices works on all of them.
+    server = next(
+        (
+            device
+            for device in dr.async_entries_for_config_entry(registry, entry.entry_id)
+            if (DOMAIN, server_id) in device.identifiers
+        ),
+        None,
+    )
     params = inspect.signature(registry.async_get_or_create).parameters
     via: dict[str, Any]
     if "via_device_id" in params:
