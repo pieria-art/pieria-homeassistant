@@ -1,12 +1,12 @@
 {
   "domain": "pieria",
   "name": "Pieria",
-  "codeowners": ["@josh"],
+  "codeowners": ["@AiwendilInTheWoods"],
   "config_flow": true,
-  "documentation": "https://github.com/OWNER/pieria-homeassistant",
+  "documentation": "https://github.com/pieria-art/pieria-homeassistant",
   "integration_type": "hub",
   "iot_class": "local_polling",
-  "issue_tracker": "https://github.com/OWNER/pieria-homeassistant/issues",
+  "issue_tracker": "https://github.com/pieria-art/pieria-homeassistant/issues",
   "requirements": [],
   "version": "0.2.2",
   "zeroconf": ["_pieria._tcp.local."]

@@ -136,4 +136,4 @@ python3.13 -m venv .venv && .venv/bin/pip install -r requirements_test.txt
 .venv/bin/pytest && .venv/bin/ruff check .
 ```
 
-Licence: to be chosen by the maintainer.
+Licence: [Apache-2.0](LICENSE). Pieria itself is AGPL-3.0; this integration is a separate client of its public API.
