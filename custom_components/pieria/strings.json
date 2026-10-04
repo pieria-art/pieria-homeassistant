@@ -1,0 +1,149 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Pieria",
+        "description": "Enter the address of your Pieria server.",
+        "data": {
+          "host": "Host",
+          "port": "Port"
+        }
+      },
+      "discovery_confirm": {
+        "title": "Pieria found",
+        "description": "Set up the Pieria server at {host}?"
+      },
+      "token": {
+        "title": "API token",
+        "description": "Paste an API token for {host}. Create one in Pieria under Settings, API & Integrations, with both the read and control scopes.",
+        "data": {
+          "token": "API token"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate Pieria",
+        "description": "The token for {host} was rejected. Paste a new one (read and control scopes).",
+        "data": {
+          "token": "API token"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not reach the Pieria server.",
+      "invalid_auth": "The server rejected that token."
+    },
+    "abort": {
+      "already_configured": "This Pieria server is already configured.",
+      "reauth_successful": "Re-authentication succeeded.",
+      "wrong_server": "That token belongs to a different Pieria server."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Pieria options",
+        "data": {
+          "scan_interval": "Poll interval (seconds, minimum 5)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "select": {
+      "render_mode": {
+        "name": "Render mode",
+        "state": {
+          "ken-burns": "Ken Burns",
+          "static-crop": "Static crop",
+          "contain-matte": "Contain with matte"
+        }
+      }
+    },
+    "button": {
+      "show_placard": {
+        "name": "Show placard"
+      }
+    },
+    "binary_sensor": {
+      "online": {
+        "name": "Online"
+      }
+    },
+    "image": {
+      "artwork": {
+        "name": "Artwork"
+      }
+    },
+    "switch": {
+      "quiet": {
+        "name": "Quiet mode"
+      }
+    }
+  },
+  "services": {
+    "show_artwork": {
+      "name": "Show artwork",
+      "description": "Show a specific artwork on a display now. Give an artwork ID or a search query (first hit is used).",
+      "fields": {
+        "artwork_id": {
+          "name": "Artwork ID",
+          "description": "Pieria artwork ID."
+        },
+        "query": {
+          "name": "Search query",
+          "description": "Text search over the library; the best match is shown."
+        }
+      }
+    },
+    "set_quiet": {
+      "name": "Set quiet mode",
+      "description": "Turn the manual quiet override on or off, optionally until a time.",
+      "fields": {
+        "on": {
+          "name": "On",
+          "description": "Quiet on or off."
+        },
+        "until": {
+          "name": "Until",
+          "description": "When quiet ends (omit for until switched off)."
+        },
+        "duration": {
+          "name": "Duration",
+          "description": "How long quiet lasts from now. Use either this or Until."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "not_live": {
+      "message": "{display} is not live (asleep or offline), so it cannot take commands right now."
+    },
+    "unknown_playlist": {
+      "message": "Pieria does not know that playlist: {message}"
+    },
+    "not_found": {
+      "message": "Pieria could not find that: {message}"
+    },
+    "insufficient_scope": {
+      "message": "The Pieria API token does not have the control scope."
+    },
+    "auth_failed": {
+      "message": "The Pieria server rejected the API token."
+    },
+    "cannot_connect": {
+      "message": "Could not reach the Pieria server."
+    },
+    "api_error": {
+      "message": "Pieria returned an error: {message}"
+    },
+    "artwork_id_or_query": {
+      "message": "Provide exactly one of artwork_id or query."
+    },
+    "no_search_results": {
+      "message": "No artwork matched \"{query}\"."
+    },
+    "until_or_duration": {
+      "message": "Use either until or duration, not both."
+    }
+  }
+}

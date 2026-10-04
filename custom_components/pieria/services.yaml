@@ -1,0 +1,38 @@
+show_artwork:
+  target:
+    entity:
+      integration: pieria
+      domain: media_player
+  fields:
+    artwork_id:
+      required: false
+      example: 1234
+      selector:
+        number:
+          min: 1
+          mode: box
+    query:
+      required: false
+      example: "van gogh night"
+      selector:
+        text:
+
+set_quiet:
+  target:
+    entity:
+      integration: pieria
+      domain: switch
+  fields:
+    "on":
+      required: true
+      default: true
+      selector:
+        boolean:
+    until:
+      required: false
+      selector:
+        datetime:
+    duration:
+      required: false
+      selector:
+        duration:
