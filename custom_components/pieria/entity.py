@@ -48,6 +48,7 @@ async def call_api(display_name: str, coro: Awaitable[Any]) -> Any:
         key = {
             "not_live": "not_live",
             "unknown_playlist": "unknown_playlist",
+            "unsupported_for_kind": "unsupported_for_kind",
             "not_found": "not_found",
         }.get(err.code, "api_error")
         raise HomeAssistantError(
@@ -86,7 +87,7 @@ class PieriaDisplayEntity(CoordinatorEntity[PieriaCoordinator]):
         kind = (self.display or {}).get("kind", "unknown")
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"{server_id}_{display_id}")},
-            name=display_id,
+            name=(self.display or {}).get("name") or display_id,
             manufacturer="Pieria",
             model=kind,
             via_device=(DOMAIN, server_id),
@@ -102,10 +103,12 @@ class PieriaDisplayEntity(CoordinatorEntity[PieriaCoordinator]):
         """Available while the server answers and still lists this display."""
         return super().available and self.display is not None
 
-    async def async_command(self, action: str, **kwargs: Any) -> None:
-        """Send a command and refresh."""
+    async def async_command(
+        self, action: str, patch: dict[str, Any] | None = None, **kwargs: Any
+    ) -> None:
+        """Send a command, show the expected state, and refresh."""
         await call_api(self.display_id, self._api.command(self.display_id, action, **kwargs))
-        await self.coordinator.async_request_refresh()
+        await self.coordinator.async_after_command(self.display_id, patch)
 
 
 @callback
@@ -114,18 +117,23 @@ def setup_display_entities(
     async_add_entities: AddConfigEntryEntitiesCallback,
     factory: Callable[[PieriaConfigEntry, Display], list[PieriaDisplayEntity]],
 ) -> None:
-    """Add entities for each display, including ones that appear later."""
+    """Add entities for each display, including ones that appear later.
+
+    The factory is re-run on every update so kind-gated entities appear once a display's
+    kind is known; entities already added (by unique id) are skipped.
+    """
     coordinator = entry.runtime_data.coordinator
     known: set[str] = set()
 
     @callback
     def _add_new() -> None:
         new: list[PieriaDisplayEntity] = []
-        for display_id, display in coordinator.data.displays.items():
-            if display_id in known:
-                continue
-            known.add(display_id)
-            new.extend(factory(entry, display))
+        for display in coordinator.data.displays.values():
+            for entity in factory(entry, display):
+                if entity.unique_id in known:
+                    continue
+                known.add(entity.unique_id)
+                new.append(entity)
         if new:
             async_add_entities(new)
 

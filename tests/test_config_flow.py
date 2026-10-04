@@ -168,3 +168,58 @@ async def test_options_flow(
     await hass.async_block_till_done()
     assert mock_entry.options[CONF_SCAN_INTERVAL] == 30
     assert mock_entry.runtime_data.coordinator.update_interval.total_seconds() == 30
+
+
+async def _to_token_step(hass: HomeAssistant) -> dict:
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_USER}
+    )
+    return await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_HOST: HOST, CONF_PORT: PORT}
+    )
+
+
+async def test_missing_scope_shows_error_then_recovers(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    aioclient_mock.get(f"{API}/info", json={**INFO, "token_scopes": ["read"]})
+    result = await _to_token_step(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_TOKEN: "readonly"}
+    )
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": "missing_scope"}
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(f"{API}/info", json=INFO)
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {CONF_TOKEN: "both"})
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+
+
+async def test_missing_control_scope_rejected(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    aioclient_mock.get(f"{API}/info", json={**INFO, "token_scopes": ["control"]})
+    result = await _to_token_step(hass)
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {CONF_TOKEN: "c"})
+    assert result["errors"] == {"base": "missing_scope"}
+
+
+async def test_server_without_scope_report_is_accepted(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    legacy = {k: v for k, v in INFO.items() if k not in ("token_scopes", "api_features")}
+    aioclient_mock.get(f"{API}/info", json=legacy)
+    result = await _to_token_step(hass)
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {CONF_TOKEN: "t"})
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+
+
+async def test_reauth_missing_scope(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, mock_entry
+) -> None:
+    await setup_entry(hass, mock_entry, aioclient_mock)
+    result = await mock_entry.start_reauth_flow(hass)
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(f"{API}/info", json={**INFO, "token_scopes": ["read"]})
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {CONF_TOKEN: "ro"})
+    assert result["errors"] == {"base": "missing_scope"}

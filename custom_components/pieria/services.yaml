@@ -23,11 +23,15 @@ set_quiet:
       integration: pieria
       domain: switch
   fields:
-    "on":
+    mode:
       required: true
-      default: true
+      default: "on"
       selector:
-        boolean:
+        select:
+          options:
+            - "on"
+            - "off"
+            - auto
     until:
       required: false
       selector:

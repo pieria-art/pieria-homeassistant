@@ -35,6 +35,12 @@ from .const import (
     MAX_SCAN_INTERVAL,
     MIN_SCAN_INTERVAL,
 )
+from .scopes import missing_scope
+
+
+class MissingScopeError(PieriaError):
+    """The token authenticates but lacks the read or control scope."""
+
 
 TOKEN_SELECTOR = TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))
 
@@ -57,7 +63,10 @@ class PieriaConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def _validate(self, host: str, port: int, token: str) -> Info:
         client = PieriaClient(async_get_clientsession(self.hass), host, port, token)
-        return await client.info()
+        info = await client.info()
+        if missing_scope(info):
+            raise MissingScopeError("token needs read and control")
+        return info
 
     # --- manual -----------------------------------------------------------------
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
@@ -112,6 +121,8 @@ class PieriaConfigFlow(ConfigFlow, domain=DOMAIN):
             token = user_input[CONF_TOKEN].strip()
             try:
                 info = await self._validate(self._host, self._port, token)
+            except MissingScopeError:
+                errors["base"] = "missing_scope"
             except PieriaAuthError:
                 errors["base"] = "invalid_auth"
             except PieriaError:
@@ -147,6 +158,8 @@ class PieriaConfigFlow(ConfigFlow, domain=DOMAIN):
             token = user_input[CONF_TOKEN].strip()
             try:
                 info = await self._validate(entry.data[CONF_HOST], entry.data[CONF_PORT], token)
+            except MissingScopeError:
+                errors["base"] = "missing_scope"
             except PieriaAuthError:
                 errors["base"] = "invalid_auth"
             except PieriaError:

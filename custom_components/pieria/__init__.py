@@ -12,6 +12,7 @@ from .api import PieriaAuthError, PieriaClient, PieriaError
 from .const import CONF_TOKEN
 from .coordinator import PieriaConfigEntry, PieriaCoordinator, PieriaRuntimeData
 from .entity import server_device_info
+from .scopes import missing_scope
 
 PLATFORMS = [
     Platform.BINARY_SENSOR,
@@ -38,7 +39,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: PieriaConfigEntry) -> bo
     except PieriaError as err:
         raise ConfigEntryNotReady(str(err)) from err
 
-    coordinator = PieriaCoordinator(hass, entry, client)
+    if missing_scope(info):
+        raise ConfigEntryAuthFailed("token lacks the read or control scope")
+
+    coordinator = PieriaCoordinator(hass, entry, client, frozenset(info.get("api_features") or []))
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = PieriaRuntimeData(client=client, coordinator=coordinator, info=info)
 

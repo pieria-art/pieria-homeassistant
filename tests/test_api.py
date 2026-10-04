@@ -58,3 +58,18 @@ async def test_schedule_patch_and_ipv6_base(hass, aioclient_mock: AiohttpClientM
     v6 = PieriaClient(async_get_clientsession(hass), "fe80::1", 80, "t")
     assert v6.base_url == "http://[fe80::1]:80"
     assert v6.absolute_url("/media/a.jpg") == "http://[fe80::1]:80/media/a.jpg"
+
+
+async def test_command_playlist_id_and_quiet_body(
+    hass, aioclient_mock: AiohttpClientMocker
+) -> None:
+    client = await _client(hass)
+    aioclient_mock.post(f"{API}/displays/d/commands", status=202, json={"status": "queued"})
+    aioclient_mock.post(f"{API}/quiet", json={"active": True, "mode": "on", "source": "manual"})
+    await client.command("d", "set_playlist", playlist_id=3)
+    quiet = await client.set_quiet("on", "2030-01-01T00:00:00+00:00")
+    await client.set_quiet("auto", "2030-01-01T00:00:00+00:00")
+    assert aioclient_mock.mock_calls[0][2] == {"action": "set_playlist", "playlist_id": 3}
+    assert aioclient_mock.mock_calls[1][2] == {"mode": "on", "until": "2030-01-01T00:00:00+00:00"}
+    assert aioclient_mock.mock_calls[2][2] == {"mode": "auto"}
+    assert quiet["mode"] == "on"

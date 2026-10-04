@@ -30,7 +30,8 @@
     },
     "error": {
       "cannot_connect": "Could not reach the Pieria server.",
-      "invalid_auth": "The server rejected that token."
+      "invalid_auth": "The server rejected that token.",
+      "missing_scope": "The token is missing a scope. Create a new token with both read and control."
     },
     "abort": {
       "already_configured": "This Pieria server is already configured.",
@@ -56,6 +57,14 @@
           "ken-burns": "Ken Burns",
           "static-crop": "Static crop",
           "contain-matte": "Contain with matte"
+        }
+      },
+      "quiet_mode": {
+        "name": "Quiet mode",
+        "state": {
+          "auto": "Auto (follow schedule)",
+          "on": "On (quiet now)",
+          "off": "Off (awake now)"
         }
       }
     },
@@ -97,19 +106,19 @@
     },
     "set_quiet": {
       "name": "Set quiet mode",
-      "description": "Turn the manual quiet override on or off, optionally until a time.",
+      "description": "Force quiet on, force the display awake, or hand control back to the schedule (auto). on and off end at the given time or the next schedule boundary.",
       "fields": {
-        "on": {
-          "name": "On",
-          "description": "Quiet on or off."
+        "mode": {
+          "name": "Mode",
+          "description": "on = quiet now, off = awake now, auto = follow the quiet-hours schedule."
         },
         "until": {
           "name": "Until",
-          "description": "When quiet ends (omit for until switched off)."
+          "description": "When the override ends (default: the next schedule boundary). Ignored for auto."
         },
         "duration": {
           "name": "Duration",
-          "description": "How long quiet lasts from now. Use either this or Until."
+          "description": "How long the override lasts from now. Use either this or Until."
         }
       }
     }
@@ -144,6 +153,9 @@
     },
     "until_or_duration": {
       "message": "Use either until or duration, not both."
+    },
+    "unsupported_for_kind": {
+      "message": "{display} is an e-ink or frame display and does not support that action."
     }
   }
 }

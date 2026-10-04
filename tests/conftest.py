@@ -26,6 +26,8 @@ INFO = {
     "appliance_mode": True,
     "server_id": SERVER_ID,
     "display_name": "Living Room Pi",
+    "api_features": ["pause", "show", "quiet"],
+    "token_scopes": ["read", "control"],
 }
 
 ARTWORK = {
@@ -41,6 +43,9 @@ ARTWORK = {
 DISPLAYS = [
     {
         "id": "living-room",
+        "name": "Living Room",
+        "updated_at": "2026-10-04T09:59:00Z",
+        "playlist_id": 1,
         "live": True,
         "last_seen": "2026-10-04T10:00:00Z",
         "kind": "canvas",
@@ -51,6 +56,9 @@ DISPLAYS = [
     },
     {
         "id": "hall-eink",
+        "name": "Hall E-ink",
+        "updated_at": "2026-10-04T08:00:00Z",
+        "playlist_id": None,
         "live": False,
         "last_seen": "2026-10-04T08:00:00Z",
         "kind": "eink",
@@ -82,7 +90,7 @@ PLAYLISTS = [
     },
 ]
 
-QUIET_OFF = {"active": False, "source": "none", "until": None}
+QUIET_OFF = {"active": False, "mode": "auto", "source": "none", "until": None}
 
 
 @pytest.fixture(autouse=True)
@@ -95,9 +103,10 @@ def mock_server(
     *,
     displays: list[dict[str, Any]] | None = None,
     quiet: dict[str, Any] | None = None,
+    info: dict[str, Any] | None = None,
 ) -> None:
     """Register the happy-path GET routes."""
-    mock.get(f"{API}/info", json=INFO)
+    mock.get(f"{API}/info", json=info or INFO)
     mock.get(f"{API}/displays", json=copy.deepcopy(displays if displays is not None else DISPLAYS))
     mock.get(f"{API}/playlists", json=PLAYLISTS)
     mock.get(f"{API}/quiet", json=quiet or QUIET_OFF)

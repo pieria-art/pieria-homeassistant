@@ -14,7 +14,7 @@ from homeassistant.helpers import entity_platform
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN
+from .const import DOMAIN, FEATURE_QUIET, QUIET_MODES
 from .coordinator import PieriaConfigEntry
 from .entity import PieriaServerEntity, call_api
 
@@ -28,12 +28,14 @@ async def async_setup_entry(
     entry: PieriaConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up the quiet switch and its service."""
+    """Set up the quiet switch and its service (only when the server advertises quiet)."""
+    if FEATURE_QUIET not in entry.runtime_data.coordinator.features:
+        return
     platform = entity_platform.async_get_current_platform()
     platform.async_register_entity_service(
         SERVICE_SET_QUIET,
         {
-            vol.Required("on"): cv.boolean,
+            vol.Required("mode"): vol.In(QUIET_MODES),
             vol.Optional("until"): cv.datetime,
             vol.Optional("duration"): cv.positive_time_period,
         },
@@ -63,21 +65,27 @@ class PieriaQuietSwitch(PieriaServerEntity, SwitchEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Why it is on, and until when."""
+        """The override in force, why it is on, and until when."""
         quiet = self.coordinator.data.quiet or {}
-        return {"source": quiet.get("source"), "until": quiet.get("until")}
+        return {
+            "mode": quiet.get("mode"),
+            "source": quiet.get("source"),
+            "until": quiet.get("until"),
+        }
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        """Quiet on, until switched off."""
-        await self.async_set_quiet(True)
+        """Force quiet (ends at the next schedule boundary)."""
+        await self.async_set_quiet("on")
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        """Quiet off (overrides a schedule)."""
-        await self.async_set_quiet(False)
+        """Force awake if a schedule is making it quiet, else clear the override."""
+        quiet = self.coordinator.data.quiet or {}
+        scheduled = bool(quiet.get("active")) and quiet.get("source") == "schedule"
+        await self.async_set_quiet("off" if scheduled else "auto")
 
     async def async_set_quiet(
         self,
-        on: bool,
+        mode: str,
         until: datetime | None = None,
         duration: timedelta | None = None,
     ) -> None:
@@ -89,5 +97,6 @@ class PieriaQuietSwitch(PieriaServerEntity, SwitchEntity):
         if duration is not None:
             until = dt_util.utcnow() + duration
         until_iso = dt_util.as_utc(until).isoformat() if until is not None else None
-        await call_api("Pieria", self._api.set_quiet(on, until_iso))
+        quiet = await call_api("Pieria", self._api.set_quiet(mode, until_iso))
+        self.coordinator.set_quiet_state(quiet)
         await self.coordinator.async_request_refresh()

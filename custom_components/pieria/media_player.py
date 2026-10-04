@@ -18,7 +18,7 @@ from homeassistant.helpers import entity_platform
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .api import Display
-from .const import DOMAIN
+from .const import DOMAIN, FEATURE_PAUSE, FEATURE_SHOW, NON_NAVIGABLE_KINDS
 from .coordinator import PieriaConfigEntry
 from .entity import PieriaDisplayEntity, call_api, setup_display_entities
 
@@ -35,15 +35,16 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up media players."""
-    platform = entity_platform.async_get_current_platform()
-    platform.async_register_entity_service(
-        SERVICE_SHOW_ARTWORK,
-        {
-            vol.Optional(ATTR_ARTWORK_ID): cv.positive_int,
-            vol.Optional(ATTR_QUERY): cv.string,
-        },
-        "async_show_artwork",
-    )
+    if FEATURE_SHOW in entry.runtime_data.coordinator.features:
+        platform = entity_platform.async_get_current_platform()
+        platform.async_register_entity_service(
+            SERVICE_SHOW_ARTWORK,
+            {
+                vol.Optional(ATTR_ARTWORK_ID): cv.positive_int,
+                vol.Optional(ATTR_QUERY): cv.string,
+            },
+            "async_show_artwork",
+        )
     setup_display_entities(entry, async_add_entities, lambda e, d: [PieriaMediaPlayer(e, d["id"])])
 
 
@@ -52,17 +53,23 @@ class PieriaMediaPlayer(PieriaDisplayEntity, MediaPlayerEntity):
 
     _attr_name = None
     _attr_media_content_type = MediaType.IMAGE
-    _attr_supported_features = (
-        MediaPlayerEntityFeature.NEXT_TRACK
-        | MediaPlayerEntityFeature.PREVIOUS_TRACK
-        | MediaPlayerEntityFeature.PLAY
-        | MediaPlayerEntityFeature.PAUSE
-        | MediaPlayerEntityFeature.SELECT_SOURCE
-    )
     _attr_media_image_remotely_accessible = False
 
     def __init__(self, entry: PieriaConfigEntry, display_id: str) -> None:
         super().__init__(entry, display_id, "media_player")
+
+    @property
+    def supported_features(self) -> MediaPlayerEntityFeature:
+        """By kind (e-ink / frame cannot skip) and server features (pause)."""
+        features = MediaPlayerEntityFeature.SELECT_SOURCE
+        display = self.display
+        if (display or {}).get("kind") not in NON_NAVIGABLE_KINDS:
+            features |= (
+                MediaPlayerEntityFeature.NEXT_TRACK | MediaPlayerEntityFeature.PREVIOUS_TRACK
+            )
+        if FEATURE_PAUSE in self.coordinator.features:
+            features |= MediaPlayerEntityFeature.PLAY | MediaPlayerEntityFeature.PAUSE
+        return features
 
     @property
     def _artwork(self) -> dict[str, Any] | None:
@@ -129,17 +136,18 @@ class PieriaMediaPlayer(PieriaDisplayEntity, MediaPlayerEntity):
             "kind": display["kind"],
             "render_mode": display.get("mode"),
             "last_seen": display["last_seen"],
+            "updated_at": display.get("updated_at"),
             "artwork_year": art.get("year"),
             "artwork_is_personal": art.get("is_personal"),
         }
 
     async def async_media_play(self) -> None:
         """Resume."""
-        await self.async_command("resume")
+        await self.async_command("resume", {"paused": False})
 
     async def async_media_pause(self) -> None:
         """Pause."""
-        await self.async_command("pause")
+        await self.async_command("pause", {"paused": True})
 
     async def async_media_next_track(self) -> None:
         """Next artwork."""
@@ -150,8 +158,13 @@ class PieriaMediaPlayer(PieriaDisplayEntity, MediaPlayerEntity):
         await self.async_command("previous")
 
     async def async_select_source(self, source: str) -> None:
-        """Switch playlist (by name)."""
-        await self.async_command("set_playlist", playlist=source)
+        """Switch playlist, by id when /playlists knows the name, else by name."""
+        match = next((p for p in self.coordinator.data.playlists if p["name"] == source), None)
+        if match is not None:
+            patch = {"playlist": source, "playlist_id": match["id"]}
+            await self.async_command("set_playlist", patch, playlist_id=match["id"])
+        else:
+            await self.async_command("set_playlist", {"playlist": source}, playlist=source)
 
     async def async_show_artwork(
         self, artwork_id: int | None = None, query: str | None = None
@@ -172,4 +185,4 @@ class PieriaMediaPlayer(PieriaDisplayEntity, MediaPlayerEntity):
                 )
             artwork_id = items[0]["id"]
         await call_api(self.display_id, self._api.show(self.display_id, artwork_id))
-        await self.coordinator.async_request_refresh()
+        await self.coordinator.async_after_command(self.display_id, None)

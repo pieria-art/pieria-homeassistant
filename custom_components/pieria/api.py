@@ -49,10 +49,13 @@ class Display(TypedDict):
     """Display."""
 
     id: str
+    name: NotRequired[str]
     live: bool
     last_seen: str
     kind: str
     playlist: str | None
+    playlist_id: NotRequired[int | None]
+    updated_at: NotRequired[str]
     paused: NotRequired[bool]
     mode: str | None
     artwork: Artwork | None
@@ -67,6 +70,8 @@ class Info(TypedDict):
     appliance_mode: bool
     server_id: str
     display_name: str | None
+    api_features: NotRequired[list[str]]
+    token_scopes: NotRequired[list[str]]
 
 
 class Playlist(TypedDict):
@@ -85,6 +90,7 @@ class Quiet(TypedDict):
     """Manual/scheduled quiet state."""
 
     active: bool
+    mode: str
     source: str
     until: str | None
 
@@ -191,12 +197,15 @@ class PieriaClient:
         action: str,
         *,
         playlist: str | None = None,
+        playlist_id: int | None = None,
         mode: str | None = None,
     ) -> None:
         """POST /displays/{id}/commands."""
         body: dict[str, Any] = {"action": action}
         if playlist is not None:
             body["playlist"] = playlist
+        if playlist_id is not None:
+            body["playlist_id"] = playlist_id
         if mode is not None:
             body["mode"] = mode
         await self._request("POST", f"/displays/{display_id}/commands", json=body)
@@ -209,9 +218,12 @@ class PieriaClient:
         """GET /quiet."""
         return await self._request("GET", "/quiet")
 
-    async def set_quiet(self, on: bool, until: str | None = None) -> Quiet:
-        """POST /quiet."""
-        return await self._request("POST", "/quiet", json={"on": on, "until": until})
+    async def set_quiet(self, mode: str, until: str | None = None) -> Quiet:
+        """POST /quiet with mode on | off | auto (until is ignored for auto)."""
+        body: dict[str, Any] = {"mode": mode}
+        if until is not None and mode != "auto":
+            body["until"] = until
+        return await self._request("POST", "/quiet", json=body)
 
     async def get_schedule(self) -> dict[str, Any]:
         """GET /schedule."""

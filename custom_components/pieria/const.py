@@ -16,3 +16,13 @@ PLAYLIST_REFRESH_SECONDS = 300
 
 RENDER_MODES = ["ken-burns", "static-crop", "contain-matte"]
 KIND_CANVAS = "canvas"
+
+KIND_EINK = "eink"
+KIND_FRAME = "frame"
+NON_NAVIGABLE_KINDS = (KIND_EINK, KIND_FRAME)
+
+QUIET_MODES = ["auto", "on", "off"]
+FEATURE_PAUSE = "pause"
+FEATURE_SHOW = "show"
+FEATURE_QUIET = "quiet"
+OPTIMISTIC_TTL = 10
