@@ -609,3 +609,64 @@ async def test_register_display_device_prefers_via_device_id(
     entity_mod.register_display_device(hass, mock_entry, DISPLAYS[0])
     server = registry.async_get_device({(DOMAIN, SERVER_ID)})
     assert seen["via_device_id"] == server.id
+
+
+def _display_gets(mock: AiohttpClientMocker) -> int:
+    return len([c for c in mock.mock_calls if str(c[1]).endswith("/displays")])
+
+
+async def test_follow_up_refreshes_after_command(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, mock_entry
+) -> None:
+    await setup_entry(hass, mock_entry, aioclient_mock)
+    aioclient_mock.post(
+        f"{API}/displays/living-room/commands", status=202, json={"status": "queued"}
+    )
+    await hass.services.async_call(
+        "media_player", "media_next_track", {"entity_id": MP}, blocking=True
+    )
+    await hass.async_block_till_done()
+    after_command = _display_gets(aioclient_mock)
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=1.6))
+    await hass.async_block_till_done()
+    assert _display_gets(aioclient_mock) == after_command + 1
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=4.1))
+    await hass.async_block_till_done()
+    assert _display_gets(aioclient_mock) == after_command + 2
+
+
+async def test_show_artwork_schedules_follow_ups(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, mock_entry
+) -> None:
+    await setup_entry(hass, mock_entry, aioclient_mock)
+    aioclient_mock.post(f"{API}/displays/living-room/show", status=202, json={"status": "queued"})
+    await hass.services.async_call(
+        DOMAIN, "show_artwork", {"entity_id": MP, "artwork_id": 7}, blocking=True
+    )
+    await hass.async_block_till_done()
+    before = _display_gets(aioclient_mock)
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=1.6))
+    await hass.async_block_till_done()
+    assert _display_gets(aioclient_mock) == before + 1
+
+
+async def test_follow_ups_cancelled_on_unload(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, mock_entry
+) -> None:
+    await setup_entry(hass, mock_entry, aioclient_mock)
+    aioclient_mock.post(
+        f"{API}/displays/living-room/commands", status=202, json={"status": "queued"}
+    )
+    await hass.services.async_call(
+        "media_player", "media_next_track", {"entity_id": MP}, blocking=True
+    )
+    await hass.async_block_till_done()
+    coordinator = mock_entry.runtime_data.coordinator
+    assert len(coordinator._follow_ups) == 2
+    await hass.config_entries.async_unload(mock_entry.entry_id)
+    await hass.async_block_till_done()
+    assert not coordinator._follow_ups
+    before = _display_gets(aioclient_mock)
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=5))
+    await hass.async_block_till_done()
+    assert _display_gets(aioclient_mock) == before

@@ -9,8 +9,9 @@ from datetime import timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import (
@@ -28,6 +29,7 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     FEATURE_QUIET,
+    FOLLOW_UP_DELAYS,
     MIN_SCAN_INTERVAL,
     OPTIMISTIC_TTL,
     PLAYLIST_REFRESH_SECONDS,
@@ -91,6 +93,7 @@ class PieriaCoordinator(DataUpdateCoordinator[PieriaData]):
         self.client = client
         self.features = features
         self._pending: dict[str, _Pending] = {}
+        self._follow_ups: set[CALLBACK_TYPE] = set()
         self._playlists: list[Playlist] = []
         self._playlists_at: float | None = None
 
@@ -149,6 +152,33 @@ class PieriaCoordinator(DataUpdateCoordinator[PieriaData]):
             displays = {**self.data.displays, display_id: {**display, **patch}}
             self.async_set_updated_data(replace(self.data, displays=displays))  # type: ignore[arg-type]
         await self.async_request_refresh()
+        self._schedule_follow_ups()
+
+    @callback
+    def _schedule_follow_ups(self) -> None:
+        """Refresh again shortly after a command: displays pick commands up within ~1 s.
+
+        These call async_refresh directly, since the request debouncer would swallow them.
+        """
+        for delay in FOLLOW_UP_DELAYS:
+            self._schedule_one(delay)
+
+    def _schedule_one(self, delay: float) -> None:
+        handle: list[CALLBACK_TYPE] = []
+
+        async def _refresh(_now: Any) -> None:
+            self._follow_ups.discard(handle[0])
+            await self.async_refresh()
+
+        handle.append(async_call_later(self.hass, delay, _refresh))
+        self._follow_ups.add(handle[0])
+
+    async def async_shutdown(self) -> None:
+        """Cancel pending follow-up refreshes."""
+        for cancel in list(self._follow_ups):
+            cancel()
+        self._follow_ups.clear()
+        await super().async_shutdown()
 
     def set_quiet_state(self, quiet: Quiet) -> None:
         """Adopt the state POST /quiet returned."""
