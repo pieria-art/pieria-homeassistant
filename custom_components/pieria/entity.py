@@ -31,6 +31,15 @@ def server_device_info(entry: PieriaConfigEntry) -> DeviceInfo:
     )
 
 
+def display_name(display: Display | None, display_id: str) -> str:
+    """Device name; a name equal to the raw id is humanized (living-room -> Living room)."""
+    name = (display or {}).get("name") or display_id
+    if name == display_id:
+        name = name.replace("-", " ").replace("_", " ").strip() or display_id
+        name = name[0].upper() + name[1:]
+    return name
+
+
 def register_display_device(
     hass: HomeAssistant, entry: PieriaConfigEntry, display: Display
 ) -> None:
@@ -51,7 +60,7 @@ def register_display_device(
     registry.async_get_or_create(
         config_entry_id=entry.entry_id,
         identifiers={(DOMAIN, f"{server_id}_{display['id']}")},
-        name=display.get("name") or display["id"],
+        name=display_name(display, display["id"]),
         manufacturer="Pieria",
         model=display.get("kind", "unknown"),
         **via,
@@ -116,7 +125,7 @@ class PieriaDisplayEntity(CoordinatorEntity[PieriaCoordinator]):
         kind = (self.display or {}).get("kind", "unknown")
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"{server_id}_{display_id}")},
-            name=(self.display or {}).get("name") or display_id,
+            name=display_name(self.display, display_id),
             manufacturer="Pieria",
             model=kind,
         )

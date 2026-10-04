@@ -670,3 +670,21 @@ async def test_follow_ups_cancelled_on_unload(
     async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=5))
     await hass.async_block_till_done()
     assert _display_gets(aioclient_mock) == before
+
+
+async def test_raw_id_name_is_humanized(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, mock_entry
+) -> None:
+    displays = copy.deepcopy(DISPLAYS)
+    displays[0]["name"] = "living-room"
+    displays[1]["name"] = "kitchen_panel_2"
+    displays[1]["id"] = "kitchen_panel_2"
+    await setup_entry(hass, mock_entry, aioclient_mock, displays=displays)
+    reg = dr.async_get(hass)
+    living = reg.async_get_device({(DOMAIN, f"{SERVER_ID}_living-room")})
+    assert living.name == "Living room"
+    assert (
+        reg.async_get_device({(DOMAIN, f"{SERVER_ID}_kitchen_panel_2")}).name == "Kitchen panel 2"
+    )
+    entity = hass.data["media_player"].get_entity(MP)
+    assert entity.unique_id == f"{SERVER_ID}_living-room_media_player"

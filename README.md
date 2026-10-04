@@ -40,7 +40,8 @@ Per server (when the server advertises `quiet`):
 | `select.<server>_quiet_mode` | `auto` (follow the quiet-hours schedule) / `on` (quiet now) / `off` (awake now). `on` and `off` end at the next schedule boundary |
 | `switch.<server>_quiet_mode` | on = art off right now, whatever the cause. Attributes `mode`, `source` (`schedule` / `manual` / `none`), `until`. Turn on forces quiet; turn off forces awake when a schedule is making it quiet, otherwise clears the override (`auto`) |
 
-Device names come from each display's name. After a command the state is shown optimistically until
+Device names come from each display's name; while the server reports the raw id as the name, it is
+humanized ("living-room" shows as "Living room"). After a command the state is shown optimistically until
 the server's `updated_at` for that display advances (or about 10 s pass), and a refresh is requested.
 
 Sleeping e-ink panels show as `off`; commands to a display that is not live fail with a clear
