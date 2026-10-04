@@ -23,8 +23,8 @@ from .conftest import API, BASE, DISPLAYS, INFO, QUIET_OFF, SERVER_ID, mock_serv
 
 MP = "media_player.living_room"
 MP_EINK = "media_player.hall_e_ink"
-QUIET = "switch.living_room_pi_quiet_mode"
-QUIET_SELECT = "select.living_room_pi_quiet_mode"
+QUIET = "switch.living_room_pi_quiet"
+QUIET_SELECT = "select.living_room_pi_quiet_override"
 SCHEDULED = {
     "active": True,
     "mode": "auto",
@@ -688,3 +688,11 @@ async def test_raw_id_name_is_humanized(
     )
     entity = hass.data["media_player"].get_entity(MP)
     assert entity.unique_id == f"{SERVER_ID}_living-room_media_player"
+
+
+async def test_quiet_entity_names_are_distinct(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, mock_entry
+) -> None:
+    await setup_entry(hass, mock_entry, aioclient_mock)
+    assert hass.states.get(QUIET).name == "Living Room Pi Quiet"
+    assert hass.states.get(QUIET_SELECT).name == "Living Room Pi Quiet override"

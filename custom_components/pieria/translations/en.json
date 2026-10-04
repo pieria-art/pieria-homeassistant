@@ -60,11 +60,11 @@
         }
       },
       "quiet_mode": {
-        "name": "Quiet mode",
+        "name": "Quiet override",
         "state": {
           "auto": "Auto (follow schedule)",
-          "on": "On (quiet now)",
-          "off": "Off (awake now)"
+          "on": "Force on",
+          "off": "Force off"
         }
       }
     },
@@ -85,7 +85,7 @@
     },
     "switch": {
       "quiet": {
-        "name": "Quiet mode"
+        "name": "Quiet"
       }
     }
   },

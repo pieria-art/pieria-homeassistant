@@ -37,8 +37,8 @@ Per server (when the server advertises `quiet`):
 
 | Entity | Notes |
 |---|---|
-| `select.<server>_quiet_mode` | `auto` (follow the quiet-hours schedule) / `on` (quiet now) / `off` (awake now). `on` and `off` end at the next schedule boundary |
-| `switch.<server>_quiet_mode` | on = art off right now, whatever the cause. Attributes `mode`, `source` (`schedule` / `manual` / `none`), `until`. Turn on forces quiet; turn off forces awake when a schedule is making it quiet, otherwise clears the override (`auto`) |
+| `select.<server>_quiet_override` | "Auto (follow schedule)" / "Force on" / "Force off" (API modes `auto` / `on` / `off`). `on` and `off` end at the next schedule boundary |
+| `switch.<server>_quiet` | on = art off right now, whatever the cause. Attributes `mode`, `source` (`schedule` / `manual` / `none`), `until`. Turn on forces quiet; turn off forces awake when a schedule is making it quiet, otherwise clears the override (`auto`) |
 
 Device names come from each display's name; while the server reports the raw id as the name, it is
 humanized ("living-room" shows as "Living room"). After a command the state is shown optimistically until
@@ -81,7 +81,7 @@ automation:
         to: "0"
     actions:
       - action: select.select_option
-        target: { entity_id: select.pieria_quiet_mode }
+        target: { entity_id: select.pieria_quiet_override }
         data: { option: "on" }
   - alias: Pieria back to schedule when someone is home
     triggers:
@@ -90,7 +90,7 @@ automation:
         above: 0
     actions:
       - action: select.select_option
-        target: { entity_id: select.pieria_quiet_mode }
+        target: { entity_id: select.pieria_quiet_override }
         data: { option: auto }
 ```
 
@@ -98,7 +98,7 @@ Stay awake for two hours tonight, regardless of the schedule:
 
 ```yaml
 action: pieria.set_quiet
-target: { entity_id: switch.pieria_quiet_mode }
+target: { entity_id: switch.pieria_quiet }
 data: { mode: "off", duration: { hours: 2 } }
 ```
 
