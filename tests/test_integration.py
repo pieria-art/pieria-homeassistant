@@ -587,3 +587,25 @@ async def test_missing_scope_on_setup_starts_reauth(
     assert any(
         f["context"]["source"] == "reauth" for f in hass.config_entries.flow.async_progress()
     )
+
+
+async def test_register_display_device_prefers_via_device_id(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, mock_entry, monkeypatch
+) -> None:
+    from custom_components.pieria import entity as entity_mod
+
+    await setup_entry(hass, mock_entry, aioclient_mock)
+    registry = dr.async_get(hass)
+    seen: dict = {}
+
+    def fake(*, config_entry_id, identifiers, via_device_id=None, **kw):
+        seen["via_device_id"] = via_device_id
+
+    class Reg:
+        async_get_or_create = staticmethod(fake)
+        async_get_device = registry.async_get_device
+
+    monkeypatch.setattr(entity_mod.dr, "async_get", lambda hass: Reg)
+    entity_mod.register_display_device(hass, mock_entry, DISPLAYS[0])
+    server = registry.async_get_device({(DOMAIN, SERVER_ID)})
+    assert seen["via_device_id"] == server.id

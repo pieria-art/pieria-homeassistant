@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import inspect
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-from homeassistant.core import callback
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -26,6 +28,33 @@ def server_device_info(entry: PieriaConfigEntry) -> DeviceInfo:
         model="Pieria server",
         sw_version=info["version"],
         configuration_url=entry.runtime_data.client.base_url,
+    )
+
+
+def register_display_device(
+    hass: HomeAssistant, entry: PieriaConfigEntry, display: Display
+) -> None:
+    """Create the display's device linked to the server device.
+
+    Newer Home Assistant wants via_device_id (via_device is deprecated, removed 2027.8); older
+    releases only know via_device. Pick whichever async_get_or_create supports.
+    """
+    registry = dr.async_get(hass)
+    server_id = entry.runtime_data.info["server_id"]
+    server = registry.async_get_device(identifiers={(DOMAIN, server_id)})
+    params = inspect.signature(registry.async_get_or_create).parameters
+    via: dict[str, Any]
+    if "via_device_id" in params:
+        via = {"via_device_id": server.id if server else None}
+    else:
+        via = {"via_device": (DOMAIN, server_id)}
+    registry.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, f"{server_id}_{display['id']}")},
+        name=display.get("name") or display["id"],
+        manufacturer="Pieria",
+        model=display.get("kind", "unknown"),
+        **via,
     )
 
 
@@ -90,7 +119,6 @@ class PieriaDisplayEntity(CoordinatorEntity[PieriaCoordinator]):
             name=(self.display or {}).get("name") or display_id,
             manufacturer="Pieria",
             model=kind,
-            via_device=(DOMAIN, server_id),
         )
 
     @property
@@ -129,6 +157,7 @@ def setup_display_entities(
     def _add_new() -> None:
         new: list[PieriaDisplayEntity] = []
         for display in coordinator.data.displays.values():
+            register_display_device(coordinator.hass, entry, display)
             for entity in factory(entry, display):
                 if entity.unique_id in known:
                     continue
