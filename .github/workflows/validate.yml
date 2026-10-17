@@ -20,9 +20,6 @@ jobs:
       - uses: hacs/action@main
         with:
           category: integration
-          # remove at launch (repo goes public): the action reads the manifest and hacs.json
-          # through the API, which a private repo does not allow, so both checks fail spuriously
-          ignore: integration_manifest hacsjson
 
   tests:
     runs-on: ubuntu-latest
